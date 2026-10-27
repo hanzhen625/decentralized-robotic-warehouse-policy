@@ -25,6 +25,7 @@ setup(
         "numpy",
         "gymnasium",
         "pyglet<2",
+        "six",
         "networkx",
     ],
     extras_require={"test": ["pytest"]},

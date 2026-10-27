@@ -148,6 +148,17 @@ pip install -e .
 
 # Getting Started
 
+From this repository, install the local package and run the random-policy demo:
+
+```sh
+python -m pip install -e .
+python test-rware.py
+```
+
+The demo displays two robots for 100 steps. To run without a graphics window,
+use `python test-rware.py --no-render`. Select your virtual environment's Python
+interpreter in your IDE before running the script.
+
 RWARE was designed to be compatible with Open AI's Gym framework.
 
 Creating the environment is done exactly as one would create a Gym environment:
