@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from warehouse_rewards import make_env
+from action_selection import select_actions
 
 
 def main():
@@ -16,8 +17,10 @@ def main():
     parser.add_argument("--seed", type=int, default=10000, help="Warehouse reset seed")
     parser.add_argument("--reward-system", choices=["baseline", "delivery", "shaped", "local_return"],
                         help="Automatically read from the model's config.json when available")
-    parser.add_argument("--action-selection", choices=["sampled", "greedy"],
+    parser.add_argument("--action-selection", choices=["sampled", "greedy", "mixed"],
                         help="Defaults to checkpoint configuration; sampled for local_return")
+    parser.add_argument("--sample-probability", type=float,
+                        help="In mixed mode, chance of sampling per robot/step (default: 0.1)")
     args = parser.parse_args()
 
     model = None
@@ -34,6 +37,11 @@ def main():
     reward_system = args.reward_system or config.get("reward_system", "local_return" if model is None else "baseline")
     action_selection = args.action_selection or config.get("action_selection", (
         "sampled" if reward_system == "local_return" else "greedy"))
+    probability = (args.sample_probability if args.sample_probability is not None
+                   else config.get("sample_probability", 0.1))
+    if not 0 <= probability <= 1:
+        parser.error("sample-probability must be between 0 and 1")
+    rng = np.random.default_rng(args.seed)
     env = make_env(reward_system, render_mode=None if args.no_render else "human")
     try:
         observations, _ = env.reset(seed=args.seed)
@@ -44,14 +52,13 @@ def main():
         for step in range(1000):
             # Batched inference: each robot still uses only its own observation.
             actions = (env.action_space.sample() if model is None else
-                       model.predict(np.asarray(observations),
-                                     deterministic=action_selection == "greedy")[0])
+                       select_actions(model, observations, action_selection, rng, probability))
             observations, rewards, terminated, truncated, info = env.step(actions)
             print(f"Step {step + 1}: Actions={actions}, Rewards={rewards}")
 
             if not args.no_render:
                 env.render()
-                time.sleep(0.1)
+                time.sleep(0.01)
 
             if terminated or truncated:
                 break

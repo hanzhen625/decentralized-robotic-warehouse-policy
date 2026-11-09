@@ -1,0 +1,32 @@
+{
+  "repository": "hanzhen625/decentralized-robotic-warehouse-policy",
+  "commit": "e8ceb65a63d5273e4da086a137de719c07b2ea64",
+  "base_commit": "3d0078be217590cb485a998d98c87b4a6e90c6f3",
+  "branch": "feature/decentralized-iql (also on master)",
+  "source_blob_shas": {
+    "decentralized_policy.py": "e0c9e7d1c6be084a1fbe38dc360ebe19910375e5",
+    "evaluate_baselines.py": "09802d05507490cded862cfb98797072091f07f9",
+    "evaluate_decentralized.py": "905950dfef76a0f3628650dc9f5410fc12c7b6fe",
+    "train_decentralized.py": "741622ea55b58fb81fc1470e7c311a5a27a9a775",
+    "train_decentralized_v2.py": "edda3331734e1eb4e99f154eee0fa61a4f08b202"
+  },
+  "training": {
+    "v1": {
+      "episodes": 1000,
+      "warehouse_steps_per_episode": 200,
+      "agent_transitions": 400000
+    },
+    "v2": {
+      "episodes": 2000,
+      "warehouse_steps_per_episode": 200,
+      "agent_transitions": 800000
+    }
+  },
+  "fixed_task": {
+    "seeds": "10000-10049",
+    "warehouse_step_limit": 1000,
+    "requested_deliveries": 2,
+    "success": "Both requests delivered, every shelf restored to its own original home, and none carried",
+    "information_warning": "Partner Q tables and BFS retain oracle access as submitted; PPO uses local sensing and private memory. Training budgets differ."
+  }
+}

@@ -47,6 +47,19 @@ choose how the saved network's probabilities become actions. Sampling does not
 update weights or require human control. The two selection modes can perform
 very differently; the benchmark records the selected mode.
 
+For 90% greedy decisions and a 10% chance of sampling, independently for each
+robot on each step (no retraining):
+
+```powershell
+python random_small_env.py --model results/local_return/model.zip --action-selection mixed --sample-probability 0.1
+```
+
+Change `0.1` to adjust the sampling chance. Sampling can still select the greedy
+action. This is sampling from the model's probabilities, not uniformly random
+movement. The saved checkpoint's existing default stays unchanged.
+To benchmark the mixture, use the same flags with `train_decentralized.py
+--load results/local_return/model.zip --output results/mixed_test`.
+
 ## Reward systems
 
 Edit the named constants in `warehouse_rewards.py`, then retrain to use changes.

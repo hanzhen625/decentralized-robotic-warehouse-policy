@@ -14,6 +14,7 @@ from stable_baselines3.common.vec_env import VecEnv
 
 from rware.warehouse import Action
 from warehouse_rewards import GAMMA, REWARD_SETTINGS, make_env
+from action_selection import select_actions
 
 
 class RobotVecEnv(VecEnv):
@@ -77,7 +78,8 @@ class RobotVecEnv(VecEnv):
         return [False for _ in self._get_indices(indices)]
 
 
-def evaluate(model, episodes, reward_system="local_return", action_selection="greedy"):
+def evaluate(model, episodes, reward_system="local_return", action_selection="greedy",
+             sample_probability=0.1):
     """Use identical layouts/requests for both policies; count actual deliveries."""
     rows = []
     env = make_env(reward_system)
@@ -86,11 +88,11 @@ def evaluate(model, episodes, reward_system="local_return", action_selection="gr
             obs, _ = env.reset(seed=seed)
             env.action_space.seed(seed)
             torch.manual_seed(seed)  # Reproduce sampled actions independently per episode.
+            rng = np.random.default_rng(seed)
             blocked = 0
             for step in range(1, 1001):
                 actions = (env.action_space.sample() if policy == "random"
-                           else model.predict(np.asarray(obs),
-                                              deterministic=action_selection == "greedy")[0])
+                           else select_actions(model, obs, action_selection, rng, sample_probability))
                 positions = [(a.x, a.y) for a in env.unwrapped.agents]
                 obs, _, done, truncated, _ = env.step(actions)
                 blocked += sum(int(action == Action.FORWARD.value and pos == (a.x, a.y))
@@ -116,8 +118,10 @@ def main():
     parser.add_argument("--reward-system", choices=["baseline", "delivery", "shaped", "local_return"],
                         help="Defaults to local_return, or the loaded checkpoint's configuration")
     parser.add_argument("--load", type=Path, help="Evaluate a saved model without training")
-    parser.add_argument("--action-selection", choices=["sampled", "greedy"],
+    parser.add_argument("--action-selection", choices=["sampled", "greedy", "mixed"],
                         help="Evaluation actions; local_return defaults to sampled as in training")
+    parser.add_argument("--sample-probability", type=float,
+                        help="Mixed-mode sampling probability per robot/step (default: 0.1)")
     args = parser.parse_args()
     if args.steps <= 0 or args.episodes <= 0:
         parser.error("steps and episodes must be positive")
@@ -127,6 +131,10 @@ def main():
         previous.get("reward_system", "baseline") if args.load else "local_return")
     args.action_selection = args.action_selection or previous.get("action_selection", (
         "sampled" if args.reward_system == "local_return" else "greedy"))
+    args.sample_probability = (args.sample_probability if args.sample_probability is not None
+                               else previous.get("sample_probability", 0.1))
+    if not 0 <= args.sample_probability <= 1:
+        parser.error("sample-probability must be between 0 and 1")
     args.output.mkdir(parents=True, exist_ok=True)
     torch.set_num_threads(1)  # Small networks run faster without thread overhead.
     started = time.perf_counter()
@@ -143,7 +151,8 @@ def main():
         model.save(args.output / "model")
         env.close()
     seconds = time.perf_counter() - started
-    rows = evaluate(model, args.episodes, args.reward_system, args.action_selection)
+    rows = evaluate(model, args.episodes, args.reward_system, args.action_selection,
+                    args.sample_probability)
     with (args.output / "evaluation.csv").open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -170,6 +179,7 @@ def main():
               f"{'Load' if args.load else 'Training'} time: {seconds:.1f} seconds. "
               f"Evaluation: {args.episodes} paired seeds starting at 10000; "
               f"{args.action_selection} IPPO actions (sampling seeded per episode).", "",
+              f"Mixed-mode sampling probability: {args.sample_probability:g} per robot/step (used only in mixed mode).", "",
               "| Policy | Full success | Deliveries/episode | Returned/episode | Shelves away/episode | Steps/success |",
               "|---|---:|---:|---:|---:|---:|"]
     for policy in ("random", "ippo"):

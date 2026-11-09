@@ -1,0 +1,11 @@
+policy,seed,steps,total_reward,robot_1_reward,robot_2_reward,rewarded_steps,reward_per_100_steps
+random,42,500,0.0,0.0,0.0,0,0.0
+random,43,500,0.0,0.0,0.0,0,0.0
+random,44,500,0.0,0.0,0.0,0,0.0
+random,45,500,0.0,0.0,0.0,0,0.0
+random,46,500,0.0,0.0,0.0,0,0.0
+heuristic,42,500,16.0,16.0,0.0,16,3.2
+heuristic,43,500,15.0,15.0,0.0,15,3.0
+heuristic,44,500,16.0,16.0,0.0,16,3.2
+heuristic,45,500,12.0,12.0,0.0,12,2.4
+heuristic,46,500,16.0,16.0,0.0,16,3.2
