@@ -1,0 +1,11 @@
+{
+  "steps": 1000000,
+  "seed": 42,
+  "episodes": 50,
+  "output": "results\\decentralized",
+  "load": null,
+  "actual_agent_transitions": 1000448,
+  "torch": "2.15.0+cpu",
+  "python": "3.13.13",
+  "training_seed": 42
+}

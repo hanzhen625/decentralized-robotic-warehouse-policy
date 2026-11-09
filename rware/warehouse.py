@@ -167,6 +167,8 @@ class Warehouse(gym.Env):
         image_observation_directional: bool = True,
         normalised_coordinates: bool = False,
         render_mode: str = "human",
+        replace_requests: bool = True,
+        require_shelf_return: bool = False,
     ):
         """The robotic warehouse environment
 
@@ -214,6 +216,12 @@ class Warehouse(gym.Env):
         :type sensor_range: int
         :param request_queue_size: How many shelfs are simultaneously requested
         :type request_queue_size: int
+        :param replace_requests: Replace delivered requests when True; otherwise end
+            the episode when all initially requested shelves have been delivered.
+        :type replace_requests: bool
+        :param require_shelf_return: If True, finite tasks finish only after all
+            deliveries and restoration of every shelf to its original position.
+        :type require_shelf_return: bool
         :param max_inactivity: Number of steps without a delivered shelf until environment finishes
         :type max_inactivity: Optional[int]
         :param reward_type: Specifies if agents are rewarded individually or globally
@@ -259,6 +267,9 @@ class Warehouse(gym.Env):
             sa_action_space = gym.spaces.MultiDiscrete(sa_action_space)
         self.action_space = gym.spaces.Tuple(tuple(n_agents * [sa_action_space]))
 
+        # With replacement disabled, the initial queue is the entire episode's work.
+        self.replace_requests = replace_requests
+        self.require_shelf_return = require_shelf_return
         self.request_queue_size = request_queue_size
         self.request_queue = []
 
@@ -744,7 +755,22 @@ class Warehouse(gym.Env):
             return self._get_default_obs(agent)
 
     def _get_info(self):
-        return {}
+        return self.task_metrics() if self.require_shelf_return else {}
+
+    def task_metrics(self):
+        """Global scoring only; these metrics are not robot observations."""
+        carried = {a.carrying_shelf for a in self.agents if a.carrying_shelf}
+        stored = {(s.x, s.y) for s in self.shelfs if s not in carried}
+        away = sum(s in carried or (s.x, s.y) != self.shelf_origins[s.id]
+                   for s in self.shelfs)
+        pending = {s.id for s in self.request_queue}
+        returned = sum(s.id in self.initial_request_ids and s.id not in pending
+                       and s not in carried and (s.x, s.y) == self.shelf_origins[s.id]
+                       for s in self.shelfs)
+        complete = not self.request_queue and (not self.require_shelf_return or away == 0)
+        return dict(deliveries=self.request_queue_size - len(self.request_queue),
+                    returned=returned, holes=len(set(self.shelf_origins.values()) - stored),
+                    shelves_away=away, task_complete=bool(complete))
 
     def _recalc_grid(self):
         self.grid[:] = 0
@@ -776,6 +802,7 @@ class Warehouse(gym.Env):
             )
             if not self._is_highway(x, y)
         ]
+        self.shelf_origins = {s.id: (s.x, s.y) for s in self.shelfs}
 
         # spawn agents at random locations
         agent_locs = self.np_random.choice(
@@ -798,6 +825,7 @@ class Warehouse(gym.Env):
                 self.shelfs, size=self.request_queue_size, replace=False
             )
         )
+        self.initial_request_ids = {s.id for s in self.request_queue}
 
         return tuple([self._make_obs(agent) for agent in self.agents]), self._get_info()
 
@@ -911,10 +939,12 @@ class Warehouse(gym.Env):
                 continue
             # a shelf was successfully delived.
             shelf_delivered = True
-            # remove from queue and replace it
-            candidates = [s for s in self.shelfs if s not in self.request_queue]
-            new_request = self.np_random.choice(candidates)
-            self.request_queue[self.request_queue.index(shelf)] = new_request
+            if self.replace_requests:
+                candidates = [s for s in self.shelfs if s not in self.request_queue]
+                new_request = self.np_random.choice(candidates)
+                self.request_queue[self.request_queue.index(shelf)] = new_request
+            else:
+                self.request_queue.remove(shelf)
             # also reward the agents
             if self.reward_type == RewardType.GLOBAL:
                 rewards += 1
@@ -939,7 +969,16 @@ class Warehouse(gym.Env):
             done = True
         else:
             done = False
+        if not self.replace_requests and not self.request_queue:
+            done = True
         truncated = False
+        if self.require_shelf_return:
+            # Delivering the last request is only halfway through the task.
+            complete = self.task_metrics()["task_complete"]
+            timed_out = bool((self.max_steps and self._cur_steps >= self.max_steps)
+                             or (self.max_inactivity_steps and
+                                 self._cur_inactive_steps >= self.max_inactivity_steps))
+            done, truncated = complete, bool(timed_out and not complete)
 
         new_obs = tuple([self._make_obs(agent) for agent in self.agents])
         info = self._get_info()

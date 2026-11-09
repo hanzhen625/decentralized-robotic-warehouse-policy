@@ -101,6 +101,37 @@ def test_goal_location(env_0: Warehouse):
     assert env_0.goals[1] == (5, 28)
 
 
+def test_two_requests_without_replacement():
+    env = Warehouse(
+        3, 8, 1, 1, 0, 1, 2, None, None, RewardType.INDIVIDUAL,
+        replace_requests=False,
+    )
+    env.reset(seed=42)
+    requests = list(env.request_queue)
+    shelf_count = len(env.shelfs)
+    agent = env.agents[0]
+
+    for index, shelf in enumerate(requests):
+        # Deliver each original request to a different goal.
+        agent.x, agent.y = env.goals[index]
+        shelf.x, shelf.y = env.goals[index]
+        agent.carrying_shelf = shelf
+        env._recalc_grid()
+        _, rewards, done, _, _ = env.step([Action.NOOP])
+        assert rewards == [1.0]
+        assert len(env.request_queue) == 1 - index
+        assert done == (index == 1)
+        assert len(env.shelfs) == shelf_count
+        assert (shelf.x, shelf.y) == env.goals[index]
+
+        # A completed shelf cannot earn another delivery reward.
+        _, rewards, _, _, _ = env.step([Action.NOOP])
+        assert rewards == [0.0]
+
+    env.reset(seed=42)
+    assert len(env.request_queue) == 2
+
+
 def test_goal_1(env_0: Warehouse):
     assert env_0.request_queue[0] == env_0.shelfs[0]
 

@@ -34,7 +34,8 @@ def env_0():
 
     env.agents[0].carrying_shelf = env.shelfs[0]
 
-    env.request_queue[0] = env.shelfs[0]
+    # Unique requests prevent an accidental second delivery resetting inactivity.
+    env.request_queue = list(env.shelfs[:5])
     env._recalc_grid()
     return env
 
@@ -364,7 +365,7 @@ def test_inactivity_1(env_0):
     assert done
 
 
-@pytest.mark.parametrize("time_limit,", [1, 100, 200])
+@pytest.mark.parametrize("time_limit", [1, 100, 200])
 def test_time_limit(time_limit):
     env = Warehouse(
         shelf_columns=1,

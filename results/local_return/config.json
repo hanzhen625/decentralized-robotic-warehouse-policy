@@ -1,0 +1,21 @@
+{
+  "steps": 2000000,
+  "seed": 42,
+  "episodes": 50,
+  "output": "results\\local_return",
+  "reward_system": "local_return",
+  "load": null,
+  "actual_agent_transitions": 2000896,
+  "reward_settings": {
+    "delivery": 1.0,
+    "step_cost": 0.001,
+    "gamma": 0.99,
+    "return_reward": 0.5,
+    "exploration": 0.002,
+    "shaping_scale": 0.5,
+    "distance_scale": 20.0
+  },
+  "torch": "2.15.0+cpu",
+  "action_selection": "sampled",
+  "python": "3.13.13"
+}

@@ -1,0 +1,18 @@
+{
+  "steps": 1000000,
+  "seed": 42,
+  "episodes": 50,
+  "output": "results\\shaped",
+  "reward_system": "shaped",
+  "load": null,
+  "actual_agent_transitions": 1000448,
+  "reward_settings": {
+    "delivery": 1.0,
+    "step_cost": 0.001,
+    "gamma": 0.99,
+    "shaping_scale": 0.5,
+    "distance_scale": 20.0
+  },
+  "torch": "2.15.0+cpu",
+  "python": "3.13.13"
+}

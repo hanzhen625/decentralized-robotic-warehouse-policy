@@ -148,6 +148,9 @@ pip install -e .
 
 # Getting Started
 
+For this fork's decentralized PPO implementation, see [training and simulation
+instructions](TRAINING.md) and the [concise progress report](PROGRESS.md).
+
 From this repository, install the local package and run the random-policy demo:
 
 ```sh

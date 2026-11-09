@@ -1,0 +1,2 @@
+-e .
+stable-baselines3==2.9.2
